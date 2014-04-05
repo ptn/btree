@@ -1,5 +1,24 @@
 (ns btree.core)
 
+(declare btree-cons)
+
+(deftype Node [order keys ch parent]
+  clojure.lang.IPersistentCollection
+  ;; insert x into node, keeping it balanced
+  (cons [node x] (btree-cons node x))
+  (equiv [self other]
+    (if (and (instance? Node self)
+             (instance? Node other))
+      (and (= (.order self) (.order other))
+           (= (.keys self) (.keys other)))
+      false)))
+
+(defn btree [order]
+  (->Node order
+          (vec (repeat (- order 1) nil))
+          (vec (repeatedly order #(atom nil)))
+          (atom nil)))
+
 (defn full? [node]
   (= -1 (.indexOf (.keys node) nil)))
 
@@ -54,12 +73,14 @@
 (defn- bubble-up
   "Make sure node's parent contains it as one of its children."
   [node pos-in-parent]
-  (let [update-me (nth (.ch (.parent node)) pos-in-parent)]
-    (reset! update-me node)
-    (when @(.parent node)
-      (let [pos-in-parent' (.indexOf (mapv deref (.ch (.parent node)))
-                                     node)]
-        (recur @(.parent node) pos-in-parent')))))
+  (if @(.parent node)
+    (let [update-me (nth (.ch @(.parent node)) pos-in-parent)]
+      (reset! update-me node)
+      (when @(.parent node)
+        (let [pos-in-parent' (.indexOf (mapv deref (.ch @(.parent node)))
+                                       node)]
+          (recur @(.parent node) pos-in-parent'))))
+    node))
 
 (defn- trickle-down
   "Make sure the children of node point to it as their parent."
@@ -72,29 +93,36 @@
 (defn- add-to-keys [node x]
   (let [node' (->Node (.order node)
                       ;; does the B-tree property hold after sorting?
-                      (assoc (.keys node) (.indexOf (.keys node) nil) x)
+                      (vec (sort (assoc (.keys node)
+                                        (.indexOf (.keys node) nil)
+                                        x)))
                       (.ch node)
                       (.parent node))]
     (trickle-down node')
-    (when @(.parent node)
-      (let [pos-in-parent (.indexOf (mapv deref (.ch @(.parent node)))
+    (if @(.parent node)
+      (let [pos-in-parent (.indexOf (map deref (.ch @(.parent node)))
                                     node)]
-        (bubble-up node' pos-in-parent)))
-    node'))
+        (bubble-up node' pos-in-parent))
+      node')))
 
-(deftype Node [order keys ch parent]
-  clojure.lang.IPersistentCollection
-  ;; insert x into node, keeping it balanced
-  (cons [node x]
-    (let [[place idx] (find-insertion-point node x)]
-      (if (= -1 idx)
-        (add-to-keys place x)))))
+(defn- rebalance [node] node)
 
-(defn btree [order]
-  (->Node order
-          (vec (repeat (- order 1) nil))
-          (vec (repeatedly order #(atom nil)))
-          (atom nil)))
+(defn- create-child
+  "Insert a new child of node that contains key x at the pos-th position."
+  [node key pos]
+  (let [keys (vec (repeat (- (.order node) 1) nil))
+        child (->Node (.order node)
+                      (assoc keys 0 key)
+                      (vec (repeatedly (.order node) #(atom nil)))
+                      (atom node))]
+    (reset! (nth (.ch node) pos) child)
+    (rebalance node)))
+
+(defn btree-cons [node x]
+  (let [[place idx] (find-insertion-point node x)]
+    (if (= -1 idx)
+      (add-to-keys place x)
+      (create-child place x idx))))
 
 (defn testbt []
   (let [lch (->Node 3
