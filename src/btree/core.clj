@@ -27,6 +27,13 @@
     (= (count (keep nil? derefed-ch))
        (.order node))))
 
+(defn height [node]
+  (if (nil? node)
+    0
+    (let [node' (if (instance? Node node) node @node)
+          child-heights (map height (map deref (.ch node')))]
+      (inc (apply max child-heights)))))
+
 (defn- child-idx
   "Return the index of the child of node where x should be tried to be inserted."
   ([node x] (child-idx node x 0))
