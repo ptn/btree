@@ -123,20 +123,3 @@
     (if (= -1 idx)
       (add-to-keys place x)
       (create-child place x idx))))
-
-(defn testbt []
-  (let [lch (->Node 3
-                    [1 nil]
-                    (vec (repeatedly 3 #(atom nil)))
-                    (atom nil))
-        rch (->Node 3
-                    [8 nil]
-                    (vec (repeatedly 3 #(atom nil)))
-                    (atom nil))
-        parent (->Node 3
-                       [4 nil]
-                       [(atom lch) (atom rch) (atom nil)]
-                       (atom nil))]
-    (reset! (.parent lch) parent)
-    (reset! (.parent rch) parent)
-    parent))
