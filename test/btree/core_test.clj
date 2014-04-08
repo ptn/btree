@@ -34,16 +34,28 @@
   (testing "creating without keys"
     (let [subject (btree/btree 3)]
       (is (= 3 (.order subject)))
-      (is (= [{:val nil :lch nil :rch nil}
-              {:val nil :lch nil :rch nil}]
-             (.keys subject)))
+
+      (is (= nil (:val (first (.keys subject)))))
+      (is (= nil @(:lch (first (.keys subject)))))
+      (is (= nil @(:rch (first (.keys subject)))))
+
+      (is (= nil (:val (second (.keys subject)))))
+      (is (= nil @(:lch (second (.keys subject)))))
+      (is (= nil @(:rch (second(.keys subject)))))
+
       (is (= nil @(.parent subject)))))
   (testing "creating with keys"
     (let [subject (btree/btree 3 4 20)]
       (is (= 3 (.order subject)))
-      (is (= [{:val 4  :lch nil :rch nil}
-              {:val 20 :lch nil :rch nil}]
-             (.keys subject)))
+
+      (is (= 4 (:val (first (.keys subject)))))
+      (is (= nil @(:lch (first (.keys subject)))))
+      (is (= nil @(:rch (first (.keys subject)))))
+
+      (is (= 20 (:val (second (.keys subject)))))
+      (is (= nil @(:lch (second (.keys subject)))))
+      (is (= nil @(:rch (second(.keys subject)))))
+
       (is (= nil @(.parent subject))))))
 
 (comment

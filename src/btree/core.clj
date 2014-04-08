@@ -17,17 +17,19 @@
   ([order]
      (->Node order
              (vec (repeatedly (- order 1)
-                              #(hash-map :val nil :lch nil :rch nil)))
+                              #(hash-map :val nil
+                                         :lch (atom nil)
+                                         :rch (atom nil))))
              (atom nil)))
   ([order & keys]
-   (let [keys' (mapv #(hash-map :val % :lch nil :rch nil)
+     (let [keys' (mapv #(hash-map :val % :lch (atom nil) :rch (atom nil))
                      (sort keys))]
      (->Node order
              (into keys' (repeat (- order 1 (count keys)) nil))
              (atom nil)))))
 
 (defn children [node]
-  (map #(if (nil? %) % (deref %))
+  (map deref
        (conj (mapv :lch (.keys node))
              (:rch (last (.keys node))))))
 
