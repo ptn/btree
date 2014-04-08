@@ -4,24 +4,40 @@
 
 (defn testbt []
   (let [lch (btree/->Node 3
-                    [1 nil]
-                    (vec (repeatedly 3 #(atom nil)))
-                    (atom nil))
+                          [{:val 1   :lch (atom nil) :rch (atom nil)}
+                           {:val nil :lch (atom nil) :rch (atom nil)}]
+                          (atom nil))
         rch (btree/->Node 3
-                    [8 nil]
-                    (vec (repeatedly 3 #(atom nil)))
-                    (atom nil))
+                          [{:val 8   :lch (atom nil) :rch (atom nil)}
+                           {:val nil :lch (atom nil) :rch (atom nil)}]
+                          (atom nil))
         parent (btree/->Node 3
-                       [4 nil]
-                       [(atom lch) (atom rch) (atom nil)]
-                       (atom nil))]
+                             [{:val 4   :lch (atom lch) :rch (atom nil)}
+                              {:val nil :lch (atom rch) :rch (atom nil)}]
+                             (atom nil))]
     (reset! (.parent lch) parent)
     (reset! (.parent rch) parent)
     parent))
 
-(deftest height-virtual-property
-  (is (= (btree/height (btree/btree 3)) 1))
-  (is (= (btree/height (testbt)) 2)))
+(comment
+  (deftest height-virtual-property
+    (is (= (btree/height (btree/btree 3)) 1))
+    (is (= (btree/height (testbt)) 2))))
+
+(deftest children-virtual-property
+  (let [children (btree/children (testbt))]
+    (is (= (map :val (.keys (first children)))  [1 nil]))
+    (is (= (map :val (.keys (second children))) [8 nil]))
+    (is (nil? (last children)))
+    (is (= (count children) 3))))
+
+(deftest creation
+  (let [subject (btree/btree 3)]
+    (is (= 3 (.order subject)))
+    (is (= [{:value nil :lch nil :rch nil}
+            {:value nil :lch nil :rch nil}]
+           (.keys subject)))
+    (is (= nil @(.parent subject)))))
 
 (comment
   (deftest insertion
