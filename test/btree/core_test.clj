@@ -34,8 +34,8 @@
 (deftest creation
   (let [subject (btree/btree 3)]
     (is (= 3 (.order subject)))
-    (is (= [{:value nil :lch nil :rch nil}
-            {:value nil :lch nil :rch nil}]
+    (is (= [{:val nil :lch nil :rch nil}
+            {:val nil :lch nil :rch nil}]
            (.keys subject)))
     (is (= nil @(.parent subject)))))
 

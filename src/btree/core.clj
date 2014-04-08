@@ -16,7 +16,8 @@
 (defn btree
   ([order]
      (->Node order
-             (vec (repeat (- order 1) nil))
+             (vec (repeatedly (- order 1)
+                              #(hash-map :val nil :lch nil :rch nil)))
              (atom nil)))
   ([order keys]
      (->Node order
