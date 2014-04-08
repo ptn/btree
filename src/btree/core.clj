@@ -13,11 +13,19 @@
            (= (.keys self) (.keys other)))
       false)))
 
-(defn btree [order]
-  (->Node order
-          (vec (repeat (- order 1) nil))
-          (vec (repeatedly order #(atom nil)))
-          (atom nil)))
+(defn btree
+  ([order]
+     (->Node order
+             (vec (repeat (- order 1) nil))
+             (vec (repeatedly order #(atom nil)))
+             (atom nil)))
+  ([order keys]
+     (->Node order
+             (into (vec keys)
+                   (repeat (- order 1 (count keys))
+                           nil))
+             (vec (repeatedly order #(atom nil)))
+             (atom nil))))
 
 (defn full? [node]
   (= -1 (.indexOf (.keys node) nil)))
@@ -27,6 +35,7 @@
     (= (count (keep nil? derefed-ch))
        (.order node))))
 
+;; should cache this
 (defn height [node]
   (if (nil? node)
     0
@@ -77,16 +86,19 @@
             (recur child x)
             [node idx]))))))
 
+(defn pos-in-parent [node]
+  (when @(.parent node)
+    (.indexOf (mapv deref (.ch @(.parent node)))
+              node)))
+
 (defn- bubble-up
   "Make sure node's parent contains it as one of its children."
-  [node pos-in-parent]
+  [node parent-pos]
   (if @(.parent node)
-    (let [update-me (nth (.ch @(.parent node)) pos-in-parent)]
+    (let [update-me (nth (.ch @(.parent node)) parent-pos)]
       (reset! update-me node)
-      (when @(.parent node)
-        (let [pos-in-parent' (.indexOf (mapv deref (.ch @(.parent node)))
-                                       node)]
-          (recur @(.parent node) pos-in-parent'))))
+      (when-let [parent-pos' (pos-in-parent node)]
+        (recur @(.parent node) parent-pos')))
     node))
 
 (defn- trickle-down
@@ -106,10 +118,8 @@
                       (.ch node)
                       (.parent node))]
     (trickle-down node')
-    (if @(.parent node)
-      (let [pos-in-parent (.indexOf (map deref (.ch @(.parent node)))
-                                    node)]
-        (bubble-up node' pos-in-parent))
+    (if-let [parent-pos (pos-in-parent node)]
+      (bubble-up node' parent-pos)
       node')))
 
 (defn- rebalance [node] node)
