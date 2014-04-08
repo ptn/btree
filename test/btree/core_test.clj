@@ -19,10 +19,9 @@
     (reset! (.parent rch) parent)
     parent))
 
-(comment
-  (deftest height-virtual-property
-    (is (= (btree/height (btree/btree 3)) 1))
-    (is (= (btree/height (testbt)) 2))))
+(deftest height-virtual-property
+  (is (= (btree/height (btree/btree 3)) 1))
+  (is (= (btree/height (testbt)) 2)))
 
 (deftest children-virtual-property
   (let [children (btree/children (testbt))]

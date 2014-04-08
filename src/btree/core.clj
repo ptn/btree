@@ -27,7 +27,7 @@
              (atom nil)))))
 
 (defn children [node]
-  (map deref
+  (map #(if (nil? %) % (deref %))
        (conj (mapv :lch (.keys node))
              (:rch (last (.keys node))))))
 
@@ -44,7 +44,7 @@
   (if (nil? node)
     0
     (let [node' (if (instance? Node node) node @node)
-          child-heights (map height (map deref (.ch node')))]
+          child-heights (map height (children node'))]
       (inc (apply max child-heights)))))
 
 (defn- child-idx
