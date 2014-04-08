@@ -19,12 +19,12 @@
              (vec (repeatedly (- order 1)
                               #(hash-map :val nil :lch nil :rch nil)))
              (atom nil)))
-  ([order keys]
+  ([order & keys]
+   (let [keys' (mapv #(hash-map :val % :lch nil :rch nil)
+                     (sort keys))]
      (->Node order
-             (into (vec keys)
-                   (repeat (- order 1 (count keys))
-                           nil))
-             (atom nil))))
+             (into keys' (repeat (- order 1 (count keys)) nil))
+             (atom nil)))))
 
 (defn children [node]
   (map deref

@@ -32,12 +32,20 @@
     (is (= (count children) 3))))
 
 (deftest creation
-  (let [subject (btree/btree 3)]
-    (is (= 3 (.order subject)))
-    (is (= [{:val nil :lch nil :rch nil}
-            {:val nil :lch nil :rch nil}]
-           (.keys subject)))
-    (is (= nil @(.parent subject)))))
+  (testing "creating without keys"
+    (let [subject (btree/btree 3)]
+      (is (= 3 (.order subject)))
+      (is (= [{:val nil :lch nil :rch nil}
+              {:val nil :lch nil :rch nil}]
+             (.keys subject)))
+      (is (= nil @(.parent subject)))))
+  (testing "creating with keys"
+    (let [subject (btree/btree 3 4 20)]
+      (is (= 3 (.order subject)))
+      (is (= [{:val 4  :lch nil :rch nil}
+              {:val 20 :lch nil :rch nil}]
+             (.keys subject)))
+      (is (= nil @(.parent subject))))))
 
 (comment
   (deftest insertion
