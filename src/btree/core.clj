@@ -34,7 +34,8 @@
              (:rch (last (.keys node))))))
 
 (defn full? [node]
-  (= -1 (.indexOf (.keys node) nil)))
+  (let [vals (map :val (.keys node))]
+    (= -1 (.indexOf vals nil))))
 
 (defn leaf? [node]
   (let [derefed-ch (map deref (.ch node))]

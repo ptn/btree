@@ -30,6 +30,10 @@
     (is (nil? (last children)))
     (is (= (count children) 3))))
 
+(deftest full-predicate
+  (is (not (btree/full? (testbt))))
+  (is (btree/full? (btree/btree 3 1 2))))
+
 (deftest creation
   (testing "creating without keys"
     (let [subject (btree/btree 3)]
