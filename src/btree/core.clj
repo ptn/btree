@@ -38,9 +38,8 @@
     (= -1 (.indexOf vals nil))))
 
 (defn leaf? [node]
-  (let [derefed-ch (map deref (.ch node))]
-    (= (count (keep nil? derefed-ch))
-       (.order node))))
+  (= (count (filter nil? (children node)))
+     (.order node)))
 
 ;; should cache this
 (defn height [node]

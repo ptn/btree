@@ -34,6 +34,10 @@
   (is (not (btree/full? (testbt))))
   (is (btree/full? (btree/btree 3 1 2))))
 
+(deftest leaf-predicate
+  (is (btree/leaf? (btree/btree 3)))
+  (is (not (btree/leaf? (testbt)))))
+
 (deftest creation
   (testing "creating without keys"
     (let [subject (btree/btree 3)]
