@@ -26,6 +26,7 @@
   (is (= (btree/height (testbt)) 2)))
 
 (deftest children-virtual-property
+  (is (empty? (btree/children (btree/btree 3 1))))
   (let [children (btree/children (testbt))]
     (is (= (.keys (first children))  [1]))
     (is (= (.keys (second children)) [8]))

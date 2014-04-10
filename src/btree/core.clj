@@ -15,25 +15,24 @@
 
 (defn btree
   ([order]
-     (->Node order
-             (vec (repeatedly (- order 1)
-                              #(hash-map :val nil
-                                         :lch (atom nil)
-                                         :rch (atom nil))))
-             (atom nil)))
+     (->Node order [] {} {:node (atom nil) :left (atom nil) :right (atom nil)}))
   ([order & keys]
-     (let [keys' (mapv #(hash-map :val % :lch (atom nil) :rch (atom nil))
-                     (sort keys))]
      (->Node order
-             (into keys' (repeat (- order 1 (count keys)) nil))
-             (atom nil)))))
+             (vec (sort keys))
+             (apply hash-map
+                    (interleave keys
+                                (repeatedly (count keys)
+                                            #(vector (atom nil) (atom nil)))))
+             {:node (atom nil) :left (atom nil) :right (atom nil)})))
 
 (defn- extract-children [nested]
-  (map deref
-       (into (mapv first (butlast nested))
-             (last nested))))
+  (remove nil?
+          (map deref
+               (into (mapv first (butlast nested))
+                     (last nested)))))
 
-(defn children [node] (extract-children (vals (.children node))))
+(defn children [node]
+  (extract-children (vals (.children node))))
 
 (defn full? [node]
   (let [vals (map :val (.keys node))]
@@ -45,11 +44,10 @@
 
 ;; should cache this
 (defn height [node]
-  (if (nil? node)
-    0
-    (let [node' (if (instance? Node node) node @node)
-          child-heights (map height (children node'))]
-      (inc (apply max child-heights)))))
+  (let [ch (children node)]
+    (if (empty? ch)
+      1
+      (inc (apply max (map height ch))))))
 
 (defn- child-idx
   "Return the index of the child of node where x should be tried to be inserted."
@@ -148,3 +146,22 @@
     (if (= -1 idx)
       (add-to-keys place x)
       (create-child place x idx))))
+
+(defn testbt []
+  (let [lch (->Node 3
+                          [1]
+                          {1 [(atom nil) (atom nil)]}
+                          {:node (atom nil) :left (atom nil) :right (atom nil)})
+        rch (->Node 3
+                          [8]
+                          {8 [(atom nil) (atom nil)]}
+                          {:node (atom nil) :left (atom nil) :right (atom nil)})
+        parent (->Node 3
+                             [4]
+                             {4 [(atom lch) (atom rch)]}
+                             {:node (atom nil) :left (atom nil) :right (atom nil)})]
+    (reset! (:node  (.parent lch)) parent)
+    (reset! (:left  (.parent lch)) 4)
+    (reset! (:node  (.parent rch)) parent)
+    (reset! (:right (.parent rch)) 4)
+    parent))
