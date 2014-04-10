@@ -26,10 +26,9 @@
              {:node (atom nil) :left (atom nil) :right (atom nil)})))
 
 (defn- extract-children [nested]
-  (remove nil?
-          (map deref
-               (into (mapv first (butlast nested))
-                     (last nested)))))
+  (map deref
+       (into (mapv first (butlast nested))
+             (last nested))))
 
 (defn children [node]
   (extract-children (vals (.children node))))
@@ -39,14 +38,17 @@
      (- (.order node) 1)))
 
 (defn leaf? [node]
-  (empty? (children node)))
+  (empty? (remove nil? (children node))))
 
 ;; should cache this
 (defn height [node]
-  (let [ch (children node)]
-    (if (empty? ch)
-      1
-      (inc (apply max (map height ch))))))
+  (if (nil? node)
+    0
+    (let [ch (children node)]
+      (if (empty? ch)
+        1
+        (inc (apply max
+                    (map height (children node))))))))
 
 (defn- child-idx
   "Return the index of the child of node where x should be tried to be inserted."

@@ -26,7 +26,7 @@
   (is (= (btree/height (testbt)) 2)))
 
 (deftest children-virtual-property
-  (is (empty? (btree/children (btree/btree 3 1))))
+  (is (= [nil nil] (btree/children (btree/btree 3 1))))
   (let [children (btree/children (testbt))]
     (is (= (.keys (first children))  [1]))
     (is (= (.keys (second children)) [8]))
@@ -52,7 +52,7 @@
     (let [subject (btree/btree 3 4 20)]
       (is (= 3 (.order subject)))
       (is (= [4 20] (.keys subject)))
-      (is (empty? (btree/children subject)))
+      (is (= [nil nil nil] (btree/children subject)))
       (is (= [nil nil nil]
              (map deref (vals (.parent subject))))))))
 
