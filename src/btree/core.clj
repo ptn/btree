@@ -35,12 +35,11 @@
   (extract-children (vals (.children node))))
 
 (defn full? [node]
-  (let [vals (map :val (.keys node))]
-    (= -1 (.indexOf vals nil))))
+  (= (count (.keys node))
+     (- (.order node) 1)))
 
 (defn leaf? [node]
-  (= (count (filter nil? (children node)))
-     (.order node)))
+  (empty? (children node)))
 
 ;; should cache this
 (defn height [node]
