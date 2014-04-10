@@ -2,7 +2,7 @@
 
 (declare btree-cons)
 
-(deftype Node [order keys parent]
+(deftype Node [order keys children parent]
   clojure.lang.IPersistentCollection
   ;; insert x into node, keeping it balanced
   (cons [node x] (btree-cons node x))
@@ -28,10 +28,12 @@
              (into keys' (repeat (- order 1 (count keys)) nil))
              (atom nil)))))
 
-(defn children [node]
+(defn- extract-children [nested]
   (map deref
-       (conj (mapv :lch (.keys node))
-             (:rch (last (.keys node))))))
+       (into (mapv first (butlast nested))
+             (last nested))))
+
+(defn children [node] (extract-children (vals (.children node))))
 
 (defn full? [node]
   (let [vals (map :val (.keys node))]

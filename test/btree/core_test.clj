@@ -4,19 +4,21 @@
 
 (defn testbt []
   (let [lch (btree/->Node 3
-                          [{:val 1   :lch (atom nil) :rch (atom nil)}
-                           {:val nil :lch (atom nil) :rch (atom nil)}]
-                          (atom nil))
+                          [1]
+                          {1 [(atom nil) (atom nil)]}
+                          {:node (atom nil) :left (atom nil) :right (atom nil)})
         rch (btree/->Node 3
-                          [{:val 8   :lch (atom nil) :rch (atom nil)}
-                           {:val nil :lch (atom nil) :rch (atom nil)}]
-                          (atom nil))
+                          [8]
+                          {8 [(atom nil) (atom nil)]}
+                          {:node (atom nil) :left (atom nil) :right (atom nil)})
         parent (btree/->Node 3
-                             [{:val 4   :lch (atom lch) :rch (atom nil)}
-                              {:val nil :lch (atom rch) :rch (atom nil)}]
-                             (atom nil))]
-    (reset! (.parent lch) parent)
-    (reset! (.parent rch) parent)
+                             [4]
+                             {4 [(atom lch) (atom rch)]}
+                             {:node (atom nil) :left (atom nil) :right (atom nil)})]
+    (reset! (:node  (.parent lch)) parent)
+    (reset! (:left  (.parent lch)) 4)
+    (reset! (:node  (.parent rch)) parent)
+    (reset! (:right (.parent rch)) 4)
     parent))
 
 (deftest height-virtual-property
@@ -25,10 +27,9 @@
 
 (deftest children-virtual-property
   (let [children (btree/children (testbt))]
-    (is (= (map :val (.keys (first children)))  [1 nil]))
-    (is (= (map :val (.keys (second children))) [8 nil]))
-    (is (nil? (last children)))
-    (is (= (count children) 3))))
+    (is (= (.keys (first children))  [1]))
+    (is (= (.keys (second children)) [8]))
+    (is (= (count children) 2))))
 
 (deftest full-predicate
   (is (not (btree/full? (testbt))))
@@ -42,29 +43,17 @@
   (testing "creating without keys"
     (let [subject (btree/btree 3)]
       (is (= 3 (.order subject)))
-
-      (is (= nil (:val (first (.keys subject)))))
-      (is (= nil @(:lch (first (.keys subject)))))
-      (is (= nil @(:rch (first (.keys subject)))))
-
-      (is (= nil (:val (second (.keys subject)))))
-      (is (= nil @(:lch (second (.keys subject)))))
-      (is (= nil @(:rch (second(.keys subject)))))
-
-      (is (= nil @(.parent subject)))))
+      (is (empty? (.keys subject)))
+      (is (empty? (btree/children subject)))
+      (is (= [nil nil nil]
+             (map deref (vals (.parent subject)))))))
   (testing "creating with keys"
     (let [subject (btree/btree 3 4 20)]
       (is (= 3 (.order subject)))
-
-      (is (= 4 (:val (first (.keys subject)))))
-      (is (= nil @(:lch (first (.keys subject)))))
-      (is (= nil @(:rch (first (.keys subject)))))
-
-      (is (= 20 (:val (second (.keys subject)))))
-      (is (= nil @(:lch (second (.keys subject)))))
-      (is (= nil @(:rch (second(.keys subject)))))
-
-      (is (= nil @(.parent subject))))))
+      (is (= [4 20] (.keys subject)))
+      (is (empty? (btree/children subject)))
+      (is (= [nil nil nil]
+             (map deref (vals (.parent subject))))))))
 
 (comment
   (deftest insertion
