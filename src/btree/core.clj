@@ -31,7 +31,7 @@
              (last nested))))
 
 (defn children [node]
-  (extract-children (vals (.children node))))
+  (extract-children (map (.children node) (.keys node))))
 
 (defn full? [node]
   (= (count (.keys node))
@@ -50,119 +50,135 @@
         (inc (apply max
                     (map height (children node))))))))
 
-(defn- child-idx
-  "Return the index of the child of node where x should be tried to be inserted."
-  ([node x] (child-idx node x 0))
-  ([node x idx]
-     (cond
-      (< x (nth (.keys node) idx)) idx
-      (= (inc idx) (count (remove nil? (.keys node)))) (inc idx)
-      :else (recur node x (inc idx)))))
+(defn- would-be-children
+  "If x could be inserted into node, who would be its left and right children?"
+  [node x]
+  (let [conjed-keys (-> (conj (.keys node) x) sort vec)]
+    (cond
+     (= x (first conjed-keys))
+     [nil (-> (get (.children node) (first (.keys node)))
+              first
+              deref)]
+
+     (= x (last conjed-keys))
+     [(-> (get (.children node) (last (.keys node)))
+          second
+          deref)
+      nil]
+
+     :else
+     (let [idx (.indexOf conjed-keys x)]
+       [(-> (get (.children node) (nth conjed-keys (dec idx)))
+            second
+            deref)
+        (-> (get (.children node) (nth conjed-keys (inc idx)))
+            first
+            deref)]))))
+
+(defn- next-child-to-search
+  "x can't be inserted into node, find the child of node to keep looking."
+  [node x]
+  (let [children (remove nil? (would-be-children node x))]
+    (if (empty? children)
+      nil
+      (first children))))
+
+(defn- respects-property?
+  "There's space for x in node, but figure out if inserting it would respect the B-tree balance."
+  [node x]
+  (let [[left right] (would-be-children node x)]
+    (and (every? #(< x %) (if right (.keys right) []))
+         (every? #(> x %) (if left  (.keys left)  [])))))
 
 ;; TODO handle repeated items
-(defn- find-insertion-point
-  "Returns a vector of two elements, where:
-
-  * the first one indicates which node to insert x into
-  * the second one, if it is -1, indicates that x should be inserted as one of
-    the keys of the first element of the return vector, and if it is any other
-    integer, it means a new node should be created and inserted as a child of
-    the node at that index."
-  [node x]
-  (if (full? node)
-    (let [idx (child-idx node x)]
-      (if-let [child @(nth (.ch node) idx)]
-        (recur child x)
-        [node idx]))
-    ;; always insert at the end?
-    (let [pos (.indexOf (.keys node) nil)
-          leftch @(nth (.ch node) pos)
-          rightch @(nth (.ch node) (+ pos 1))]
-      (if (and (if leftch
-                 (every? #(< % x)
-                         (remove nil? (.keys leftch)))
-                 1)
-               (if rightch
-                 (every? #(> % x)
-                         (remove nil? (.keys rightch)))
-                 1))
-        [node -1]
-        ;; TODO refactor, same code as after (full? node)
-        (let [idx (child-idx node x)]
-          (if-let [child @(nth (.ch node) idx)]
-            (recur child x)
-            [node idx]))))))
-
-(defn pos-in-parent [node]
-  (when @(.parent node)
-    (.indexOf (mapv deref (.ch @(.parent node)))
-              node)))
-
-(defn- bubble-up
-  "Make sure node's parent contains it as one of its children."
-  [node parent-pos]
-  (if @(.parent node)
-    (let [update-me (nth (.ch @(.parent node)) parent-pos)]
-      (reset! update-me node)
-      (when-let [parent-pos' (pos-in-parent node)]
-        (recur @(.parent node) parent-pos')))
+(defn- find-insertion-point [node x]
+  ;; FIXME nope, bug. should insert as low as possible.
+  (if (or (full? node)
+          (not (respects-property? node x)))
+    (if-let [child (next-child-to-search node x)]
+      (recur child x)
+      ;; need to split node, so return it
+      node)
     node))
 
-(defn- trickle-down
+(defn- bubble-up!
+  "Make sure node's parent contains it as one of its children."
+  [node]
+  (if-let [parent @(:node (.parent node))]
+    (do
+      (if @(:left (.parent node))
+        (let [left (first (get (.children parent)
+                               @(:left (.parent node))))]
+          (reset! left node)))
+      (if @(:right (.parent node))
+        (let [right (second (get (.children parent)
+                                 @(:right (.parent node))))]
+          (reset! right node)))
+      (recur parent))
+    node))
+
+(defn- trickle-down!
   "Make sure the children of node point to it as their parent."
   [node]
-  (doseq [ch (.ch node)]
-    (when @ch
-      (reset! (.parent @ch) node)
-      (trickle-down @ch))))
+  (doseq [[k [left right]] (.children node)]
+    (when @left
+      (reset! (:node  (.parent @left)) node)
+      (reset! (:left  (.parent @left)) k)
+      (trickle-down! @left))
+    (when @right
+      (reset! (:node  (.parent @right)) node)
+      (reset! (:right (.parent @right)) k)))
+  (when-let [rightmost-ch @(second (get (.children node)
+                                        (last (.keys node))))]
+    (recur rightmost-ch)))
+
+(defn- new-node-from-key [node x]
+  ;; FIXME double calculation of the new keys vector, once in would-be-children
+  ;; and another one directly in the Node constructor
+  (let [[leftch rightch] (would-be-children node x)]
+    (->Node (.order node)
+            (-> (conj (.keys node) x) sort vec)
+            (assoc (.children node) x [(atom leftch) (atom rightch)])
+            (.parent node))))
 
 (defn- add-to-keys [node x]
-  (let [node' (->Node (.order node)
-                      ;; does the B-tree property hold after sorting?
-                      (vec (sort (assoc (.keys node)
-                                        (.indexOf (.keys node) nil)
-                                        x)))
-                      (.ch node)
-                      (.parent node))]
-    (trickle-down node')
-    (if-let [parent-pos (pos-in-parent node)]
-      (bubble-up node' parent-pos)
-      node')))
+  (let [node' (new-node-from-key node x)]
+    (trickle-down! node')
+    (bubble-up! node')))
 
-(defn- rebalance [node] node)
+(defn- add-as-new-child! [where what]
+  (let [new (->Node (.order where)
+                    [what]
+                    {what [(atom nil) (atom nil)]}
+                    {:node (atom where) :left (atom nil) :right (atom nil)})
+        keys (-> (conj (.keys where) what) sort vec)
+        idx (.indexOf keys what)]
+    ;; FIXME unfuck this
+    (try
+      (let [left-ch-of (nth keys (inc idx))]
+        (reset! (first (get (.children where) left-ch-of))
+                new)
+        (reset! (:left (.parent new)) left-ch-of))
+      (catch IndexOutOfBoundsException e))
+    (try
+      (let [right-ch-of (nth keys (dec idx))]
+        (reset! (second (get (.children where) right-ch-of))
+                new)
+        (reset! (:right (.parent new)) right-ch-of))
+      (catch IndexOutOfBoundsException e))
+    new))
 
-(defn- create-child
-  "Insert a new child of node that contains key x at the pos-th position."
-  [node key pos]
-  (let [keys (vec (repeat (- (.order node) 1) nil))
-        child (->Node (.order node)
-                      (assoc keys 0 key)
-                      (vec (repeatedly (.order node) #(atom nil)))
-                      (atom node))]
-    (reset! (nth (.ch node) pos) child)
-    (rebalance node)))
+(defn- rebalance [where what] where)
+
+(defn- add-with-overflow! [where what]
+  (if (empty? (children where))
+    (rebalance where (btree (.order where) what))
+    (add-as-new-child! where what)))
 
 (defn btree-cons [node x]
-  (let [[place idx] (find-insertion-point node x)]
-    (if (= -1 idx)
-      (add-to-keys place x)
-      (create-child place x idx))))
-
-(defn testbt []
-  (let [lch (->Node 3
-                          [1]
-                          {1 [(atom nil) (atom nil)]}
-                          {:node (atom nil) :left (atom nil) :right (atom nil)})
-        rch (->Node 3
-                          [8]
-                          {8 [(atom nil) (atom nil)]}
-                          {:node (atom nil) :left (atom nil) :right (atom nil)})
-        parent (->Node 3
-                             [4]
-                             {4 [(atom lch) (atom rch)]}
-                             {:node (atom nil) :left (atom nil) :right (atom nil)})]
-    (reset! (:node  (.parent lch)) parent)
-    (reset! (:left  (.parent lch)) 4)
-    (reset! (:node  (.parent rch)) parent)
-    (reset! (:right (.parent rch)) 4)
-    parent))
+  (let [point (find-insertion-point node x)]
+    (if (full? point)
+      (do
+        (add-with-overflow! point x)
+        node)
+      (add-to-keys point x))))
